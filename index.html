@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electrostática – Unidad 1</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;background:#f4f6fa;color:#1d2433}
+header{background:#1f2a44;color:#fff;padding:14px 20px}
+header h1{margin:0;font-size:1.25rem}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px;max-width:1200px;margin:auto}
+@media(max-width:850px){main{grid-template-columns:1fr}}
+.card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px #0002}
+h2{font-size:1rem;margin:0 0 10px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+td,th{padding:2px}
+input,select{width:100%;padding:5px;border:1px solid #c5ccd8;border-radius:6px;font-size:.9rem}
+button{cursor:pointer;border:0;border-radius:6px;padding:7px 12px;background:#2f5bea;color:#fff;font-size:.9rem}
+button.sec{background:#e4e8f1;color:#1d2433}
+button.x{background:#e4e8f1;color:#c0392b;padding:3px 8px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:#e4e8f1;color:#1d2433}
+.tabs button.on{background:#2f5bea;color:#fff}
+.panel{display:none}.panel.on{display:block}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:8px 0}
+label{font-size:.78rem;color:#55607a;display:block}
+canvas{width:100%;max-width:640px;height:auto;background:#fff;border:1px solid #d5dbe6;border-radius:8px;display:block;margin-top:10px}
+.res{font-family:Consolas,monospace;font-size:.9rem;line-height:1.6;background:#eef2fb;padding:10px;border-radius:8px;margin-top:10px}
+.chk{display:inline-flex;gap:5px;align-items:center;margin-right:14px;font-size:.9rem}
+.chk input{width:auto}
+</style>
+</head>
+<body>
+<header><h1>⚡ Electricidad, Campo y Potencial Eléctrico</h1></header>
+<main>
+  <aside class="card">
+    <h2>Cargas puntuales (máx. 10)</h2>
+    <table id="tbl"></table>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button onclick="addCharge()">+ Añadir</button>
+      <select id="preset" onchange="loadPreset(this.value)">
+        <option value="">Ejemplos…</option>
+        <option value="dip">Dipolo</option>
+        <option value="pos">Dos cargas positivas</option>
+        <option value="quad">Cuadrupolo</option>
+        <option value="one">Una carga</option>
+      </select>
+    </div>
+    <div class="row">
+      <div><label>Región ± (m)</label><input id="L" type="number" value="3" min="0.5" step="0.5" oninput="redraw()"></div>
+      <div><label>Plano z (m)</label><input id="zp" type="number" value="0" step="0.5" oninput="redraw()"></div>
+    </div>
+    <small style="color:#55607a">q en μC · posiciones en metros</small>
+  </aside>
+
+  <section class="card">
+    <div class="tabs">
+      <button class="on" onclick="tab(0,this)">Visualizador</button>
+      <button onclick="tab(1,this)">Calculadora de potencial</button>
+      <button onclick="tab(2,this)">Simulador de trayectoria</button>
+    </div>
+
+    <div class="panel on">
+      <label class="chk"><input type="checkbox" id="cLines" checked onchange="redraw()">Líneas de campo</label>
+      <label class="chk"><input type="checkbox" id="cEq" checked onchange="redraw()">Equipotenciales</label>
+      <canvas id="cv1" width="640" height="640"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div><label>x (m)</label><input id="px" type="number" value="0" step="0.1"></div>
+        <div><label>y (m)</label><input id="py" type="number" value="1" step="0.1"></div>
+        <div><label>z (m)</label><input id="pz" type="number" value="0" step="0.1"></div>
+      </div>
+      <button onclick="calcPot()">Calcular</button>
+      <div class="res" id="potOut">Pulsa «Calcular».</div>
+      <p style="font-size:.85rem;color:#55607a">V = Σ k·qᵢ/rᵢ &nbsp;·&nbsp; E = Σ k·qᵢ/rᵢ² · r̂ᵢ &nbsp;(k = 8,988×10⁹ N·m²/C²)</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div><label>Carga partícula (μC)</label><input id="qp" type="number" value="1" step="0.5"></div>
+        <div><label>Masa (g)</label><input id="mp" type="number" value="1" step="0.1" min="0.0001"></div>
+        <div><label>Tiempo máx. (s)</label><input id="T" type="number" value="3" step="0.5"></div>
+      </div>
+      <div class="row">
+        <div><label>x₀ (m)</label><input id="x0" type="number" value="-2.5" step="0.1"></div>
+        <div><label>y₀ (m)</label><input id="y0" type="number" value="0.5" step="0.1"></div>
+        <div><label>vₓ₀ (m/s)</label><input id="vx0" type="number" value="3" step="0.5"></div>
+        <div><label>v_y₀ (m/s)</label><input id="vy0" type="number" value="0" step="0.5"></div>
+      </div>
+      <div class="row">
+        <div><label>Campo uniforme Eₓ (V/m)</label><input id="E0x" type="number" value="0" step="1000"></div>
+        <div><label>Campo uniforme E_y (V/m)</label><input id="E0y" type="number" value="0" step="1000"></div>
+      </div>
+      <button onclick="launch()">▶ Lanzar partícula</button>
+      <div class="res" id="trOut">Configura y lanza la partícula.</div>
+      <canvas id="cv2" width="640" height="640"></canvas>
+      <canvas id="cv3" width="640" height="260"></canvas>
+    </div>
+  </section>
+</main>
+
+<script>
+const K = 8.9875517923e9, EPS = 1e-3, S = 640;
+const $ = id => document.getElementById(id);
+let charges = [{q:5,x:-1,y:0,z:0},{q:-5,x:1,y:0,z:0}];
+
+/* ---------- Física ---------- */
+function fieldAt(x, y, z){
+  let Ex=0, Ey=0, Ez=0, V=0;
+  for(const c of charges){
+    const dx=x-c.x, dy=y-c.y, dz=z-c.z, q=c.q*1e-6;
+    const r2=dx*dx+dy*dy+dz*dz+EPS*EPS, r=Math.sqrt(r2), f=K*q/(r2*r);
+    V+=K*q/r; Ex+=f*dx; Ey+=f*dy; Ez+=f*dz;
+  }
+  return {Ex,Ey,Ez,V};
+}
+
+/* ---------- Tabla de cargas ---------- */
+function renderTable(){
+  let h='<tr><th>q</th><th>x</th><th>y</th><th>z</th><th></th></tr>';
+  charges.forEach((c,i)=>{
+    h+='<tr>'+['q','x','y','z'].map(k=>
+      `<td><input type="number" step="0.5" value="${c[k]}" oninput="charges[${i}].${k}=parseFloat(this.value)||0;redraw()"></td>`).join('')
+      +`<td><button class="x" onclick="delCharge(${i})">✕</button></td></tr>`;
+  });
+  $('tbl').innerHTML=h;
+}
+function addCharge(){ if(charges.length>=10) return alert('Máximo 10 cargas.'); charges.push({q:1,x:0,y:0,z:0}); renderTable(); redraw(); }
+function delCharge(i){ charges.splice(i,1); renderTable(); redraw(); }
+function loadPreset(p){
+  const P={dip:[[5,-1,0],[-5,1,0]],pos:[[5,-1,0],[5,1,0]],
+           quad:[[5,-1,-1],[-5,1,-1],[5,1,1],[-5,-1,1]],one:[[5,0,0]]};
+  if(!P[p]) return;
+  charges=P[p].map(a=>({q:a[0],x:a[1],y:a[2],z:0}));
+  $('preset').value=''; renderTable(); redraw();
+}
+
+/* ---------- Dibujo ---------- */
+const getL = () => Math.max(0.5, parseFloat($('L').value)||3);
+const getZ = () => parseFloat($('zp').value)||0;
+const PX = (x,L)=>(x+L)/(2*L)*S, PY = (y,L)=>S-(y+L)/(2*L)*S;
+
+function contour(ctx,g,N,lev,col){
+  ctx.strokeStyle=col; ctx.beginPath();
+  const W=N+1;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const v0=g[j*W+i],v1=g[j*W+i+1],v2=g[(j+1)*W+i+1],v3=g[(j+1)*W+i],pts=[];
+    const e=(a,b,xa,ya,xb,yb)=>{ if((a<lev)!==(b<lev)){const t=(lev-a)/(b-a);pts.push([xa+(xb-xa)*t,ya+(yb-ya)*t]);} };
+    e(v0,v1,i,j,i+1,j); e(v1,v2,i+1,j,i+1,j+1); e(v3,v2,i,j+1,i+1,j+1); e(v0,v3,i,j,i,j+1);
+    for(let k=0;k+1<pts.length;k+=2){
+      ctx.moveTo(pts[k][0]/N*S, S-pts[k][1]/N*S);
+      ctx.lineTo(pts[k+1][0]/N*S, S-pts[k+1][1]/N*S);
+    }
+  }
+  ctx.stroke();
+}
+
+function arrow(ctx,x,y,ang){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang); ctx.beginPath();
+  ctx.moveTo(6,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function drawScene(ctx,showLines,showEq){
+  const L=getL(), z=getZ();
+  ctx.clearRect(0,0,S,S); ctx.fillStyle='#fff'; ctx.fillRect(0,0,S,S);
+  ctx.strokeStyle='#e3e7ef'; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(S/2,0);ctx.lineTo(S/2,S);ctx.moveTo(0,S/2);ctx.lineTo(S,S/2);ctx.stroke();
+  ctx.fillStyle='#8a93a6'; ctx.font='11px sans-serif';
+  ctx.fillText('-'+L+' m',4,S/2-4); ctx.fillText(L+' m',S-40,S/2-4); ctx.fillText(L+' m',S/2+4,12);
+
+  if(showEq && charges.length){
+    const N=110, W=N+1, g=new Float64Array(W*W);
+    for(let j=0;j<W;j++)for(let i=0;i<W;i++)
+      g[j*W+i]=Math.asinh(fieldAt(-L+2*L*i/N,-L+2*L*j/N,z).V/1e4);
+    ctx.lineWidth=1.1;
+    for(let l=-7;l<=7;l+=0.5){ if(Math.abs(l)<0.01) continue;
+      contour(ctx,g,N,l,l>0?'rgba(214,69,65,.75)':'rgba(47,91,234,.75)'); }
+    contour(ctx,g,N,0,'rgba(60,60,60,.8)');
+  }
+
+  if(showLines && charges.length){
+    const pos=charges.filter(c=>c.q>0), dir=pos.length?1:-1;
+    const src=pos.length?pos:charges.filter(c=>c.q<0);
+    const qmax=Math.max(...src.map(c=>Math.abs(c.q))), h=L/150;
+    ctx.strokeStyle='#2c3e50'; ctx.fillStyle='#2c3e50'; ctx.lineWidth=1.2;
+    for(const c of src){
+      const n=Math.max(6,Math.round(Math.abs(c.q)/qmax*18));
+      for(let k=0;k<n;k++){
+        const a=2*Math.PI*(k+.5)/n;
+        let x=c.x+0.08*Math.cos(a), y=c.y+0.08*Math.sin(a);
+        ctx.beginPath(); ctx.moveTo(PX(x,L),PY(y,L));
+        for(let s=0;s<3000;s++){
+          let f=fieldAt(x,y,z), m=Math.hypot(f.Ex,f.Ey)||1;
+          const mx=x+dir*h/2*f.Ex/m, my=y+dir*h/2*f.Ey/m;
+          f=fieldAt(mx,my,z); m=Math.hypot(f.Ex,f.Ey)||1;
+          const ox=x, oy=y;
+          x+=dir*h*f.Ex/m; y+=dir*h*f.Ey/m;
+          ctx.lineTo(PX(x,L),PY(y,L));
+          if(s%70===35){ ctx.stroke(); arrow(ctx,PX(x,L),PY(y,L),Math.atan2(-(y-oy),x-ox)); ctx.beginPath(); ctx.moveTo(PX(x,L),PY(y,L)); }
+          if(Math.abs(x)>L*1.05||Math.abs(y)>L*1.05) break;
+          if(s>5 && charges.some(o=>Math.hypot(x-o.x,y-o.y)<0.07)) break;
+        }
+        ctx.stroke();
+      }
+    }
+  }
+  for(const c of charges){
+    ctx.beginPath(); ctx.arc(PX(c.x,L),PY(c.y,L),11,0,7);
+    ctx.fillStyle=c.q>0?'#d64541':'#2f5bea'; ctx.fill(); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(c.q>0?'+':'−',PX(c.x,L),PY(c.y,L)+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  }
+}
+
+function redraw(){
+  drawScene($('cv1').getContext('2d'),$('cLines').checked,$('cEq').checked);
+}
+
+/* ---------- Pestañas ---------- */
+function tab(i,btn){
+  document.querySelectorAll('.panel').forEach((p,k)=>p.classList.toggle('on',k===i));
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  if(i===0) redraw();
+  if(i===2) drawScene($('cv2').getContext('2d'),true,false);
+}
+
+/* ---------- Módulo 2: calculadora ---------- */
+function calcPot(){
+  const x=+$('px').value, y=+$('py').value, z=+$('pz').value;
+  if(!charges.length){ $('potOut').textContent='No hay cargas definidas.'; return; }
+  const f=fieldAt(x,y,z), E=Math.hypot(f.Ex,f.Ey,f.Ez);
+  let h=`V = ${f.V.toExponential(4)} V\n|E| = ${E.toExponential(4)} V/m\nE = (${f.Ex.toExponential(3)}, ${f.Ey.toExponential(3)}, ${f.Ez.toExponential(3)}) V/m\n\nAporte de cada carga:\n`;
+  charges.forEach((c,i)=>{
+    const r=Math.hypot(x-c.x,y-c.y,z-c.z);
+    h+=`  q${i+1} = ${c.q} μC · r = ${r.toFixed(3)} m · V = ${r>0?(K*c.q*1e-6/r).toExponential(3):'∞'} V\n`;
+  });
+  $('potOut').style.whiteSpace='pre-wrap'; $('potOut').textContent=h;
+}
+
+/* ---------- Módulo 3: trayectoria ---------- */
+function launch(){
+  const L=getL(), z=getZ();
+  const qp=+$('qp').value*1e-6, m=+$('mp').value*1e-3, T=+$('T').value;
+  const E0x=+$('E0x').value, E0y=+$('E0y').value;
+  let s=[+$('x0').value,+$('y0').value,+$('vx0').value,+$('vy0').value];
+  const k=qp/m, acc=st=>{const f=fieldAt(st[0],st[1],z);return [st[2],st[3],k*(f.Ex+E0x),k*(f.Ey+E0y)];};
+  const steps=20000, dt=T/steps, add=(a,b,c)=>a.map((v,i)=>v+c*b[i]);
+  const path=[], En=[]; let t=0, msg='Se alcanzó el tiempo máximo.';
+  for(let n=0;n<=steps;n++){
+    if(n%10===0){
+      const V=fieldAt(s[0],s[1],z).V, Ek=0.5*m*(s[2]**2+s[3]**2), U=qp*(V-E0x*s[0]-E0y*s[1]);
+      path.push([s[0],s[1]]); En.push([t,Ek,U]);
+    }
+    if(charges.some(c=>Math.hypot(s[0]-c.x,s[1]-c.y)<0.05)){ msg='La partícula chocó con una carga fuente.'; break; }
+    if(Math.abs(s[0])>3*L||Math.abs(s[1])>3*L){ msg='La partícula salió de la región.'; break; }
+    const k1=acc(s),k2=acc(add(s,k1,dt/2)),k3=acc(add(s,k2,dt/2)),k4=acc(add(s,k3,dt));
+    s=s.map((v,i)=>v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i])); t+=dt;
+  }
+  $('trOut').textContent=`${msg}  Posición final: (${s[0].toFixed(3)}, ${s[1].toFixed(3)}) m · |v| = ${Math.hypot(s[2],s[3]).toFixed(3)} m/s`;
+
+  const ctx=$('cv2').getContext('2d'); drawScene(ctx,true,false);
+  ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.beginPath();
+  path.forEach((p,i)=>i?ctx.lineTo(PX(p[0],L),PY(p[1],L)):ctx.moveTo(PX(p[0],L),PY(p[1],L))); ctx.stroke();
+  ctx.fillStyle='#1e9e4a'; ctx.beginPath(); ctx.arc(PX(path[0][0],L),PY(path[0][1],L),6,0,7); ctx.fill();
+  ctx.fillStyle='#000'; const e=path[path.length-1]; ctx.fillRect(PX(e[0],L)-5,PY(e[1],L)-5,10,10);
+  plotEnergy(En);
+}
+
+function plotEnergy(En){
+  const c=$('cv3'), ctx=c.getContext('2d'), W=c.width, H=c.height, pad=40;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const tot=En.map(e=>e[1]+e[2]), all=En.flatMap((e,i)=>[e[1],e[2],tot[i]]);
+  let lo=Math.min(...all), hi=Math.max(...all); if(hi===lo){hi+=1;lo-=1;}
+  const tm=En[En.length-1][0]||1;
+  const X=t=>pad+(t/tm)*(W-pad-10), Y=v=>H-pad-(v-lo)/(hi-lo)*(H-pad-20);
+  ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.strokeRect(pad,10,W-pad-10,H-pad-10);
+  ctx.fillStyle='#555'; ctx.font='11px sans-serif';
+  ctx.fillText(hi.toExponential(2)+' J',2,20); ctx.fillText(lo.toExponential(2),2,H-pad);
+  ctx.fillText('t (s)',W/2,H-8); ctx.fillText(tm.toFixed(2),W-40,H-pad+14);
+  [[1,'#d64541','Cinética'],[2,'#2f5bea','Potencial'],[3,'#000','Total']].forEach(([idx,col,name],n)=>{
+    ctx.strokeStyle=col; ctx.lineWidth=idx===3?1.5:2; if(idx===3) ctx.setLineDash([5,4]); else ctx.setLineDash([]);
+    ctx.beginPath();
+    En.forEach((e,i)=>{const v=idx===3?tot[i]:e[idx]; i?ctx.lineTo(X(e[0]),Y(v)):ctx.moveTo(X(e[0]),Y(v));});
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=col; ctx.fillText(name,pad+10+n*80,26);
+  });
+}
+
+renderTable(); redraw();
+</script>
+</body>
+</html>
